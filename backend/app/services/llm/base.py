@@ -11,7 +11,7 @@ class LLMProvider(ABC):
         self,
         system_prompt: str,
         input_context: dict[str, Any],
-        response_model: Type[BaseModel]
+        response_model: Type[BaseModel] | None = None
     ) -> dict[str, Any]:
         """
         Generate a structured response from the LLM.

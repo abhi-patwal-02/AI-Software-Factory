@@ -4,7 +4,35 @@ from app.models.agent import Agent
 from app.models.error import Error
 from app.models.task import Task
 from app.schemas.master_decision import MasterDecision
+from app.models.task_dependency import TaskDependency
 
+def dependencies_satisfied(
+    task: Task,
+    db: Session
+) -> bool:
+
+    dependencies = (
+        db.query(TaskDependency)
+        .filter(
+            TaskDependency.task_id == task.id
+        )
+        .all()
+    )
+
+    for dependency in dependencies:
+
+        dependency_task = db.get(
+            Task,
+            dependency.depends_on_task_id
+        )
+
+        if not dependency_task:
+            return False
+
+        if dependency_task.status != "completed":
+            return False
+
+    return True
 
 def validate_master_decision(
     decision: MasterDecision,
@@ -12,6 +40,22 @@ def validate_master_decision(
 ) -> None:
 
     if decision.action == "wait":
+
+        if decision.task_id is not None:
+            raise ValueError(
+                "wait decision cannot contain task_id"
+            )
+
+        if decision.error_id is not None:
+            raise ValueError(
+                "wait decision cannot contain error_id"
+            )
+
+        if decision.agent_id is not None:
+            raise ValueError(
+                "wait decision cannot contain agent_id"
+            )
+
         return
 
     if decision.action == "assign_task":
@@ -40,14 +84,36 @@ def validate_master_decision(
                 "Agent not found"
             )
 
-        if task.status not in ["pending", "in_progress"]:
+        if task.status != "pending":
             raise ValueError(
                 f"Task cannot be assigned from status '{task.status}'"
+            )
+
+        if task.assigned_agent_id is not None:
+            raise ValueError(
+                "Task is already assigned to an agent"
             )
 
         if agent.status != "idle":
             raise ValueError(
                 "Agent is not idle"
+            )
+        
+        if not dependencies_satisfied(
+            task,
+            db
+        ):
+            raise ValueError(
+                "Task dependencies are not satisfied"
+            )
+        
+        if (
+            task.required_role
+            and agent.role != task.required_role
+        ):
+            raise ValueError(
+                f"Agent role '{agent.role}' does not match "
+                f"required role '{task.required_role}'"
             )
 
         return
