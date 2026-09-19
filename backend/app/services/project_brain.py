@@ -7,6 +7,7 @@ from app.models.agent import Agent
 from app.models.agent_run import AgentRun
 from app.models.error import Error
 from app.models.error_attempt import ErrorAttempt
+from app.models.decision import Decision
 
 from app.schemas.project_brain import ProjectBrain
 
@@ -78,6 +79,13 @@ def build_project_brain(
             .order_by(ErrorAttempt.id.desc())
             .all()
         )
+        
+    decisions = (
+        db.query(Decision)
+        .filter(Decision.project_id == project_id)
+        .order_by(Decision.id.desc())
+        .all()
+    )
         
     active_task_by_agent = {
         run.agent_id: run.task_id
@@ -203,7 +211,10 @@ def build_project_brain(
             for attempt in error_attempts[:20]
         ],
 
-        decisions=[],
+        decisions=[
+            decision_to_dict(decision)
+            for decision in decisions
+        ],
 
         current_focus=None
     )
@@ -284,4 +295,16 @@ def error_attempt_to_dict(
         "result": attempt.result,
         "status": attempt.status,
         "created_at": attempt.created_at
+    }
+    
+def decision_to_dict(decision: Decision) -> dict:
+    return {
+        "id": decision.id,
+        "project_id": decision.project_id,
+        "title": decision.title,
+        "decision": decision.decision,
+        "reasoning": decision.reasoning,
+        "decision_type": decision.decision_type,
+        "made_by_agent_id": decision.made_by_agent_id,
+        "created_at": decision.created_at
     }

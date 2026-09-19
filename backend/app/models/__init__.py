@@ -6,3 +6,5 @@ from app.models.agent_run import AgentRun
 from app.models.error import Error
 from app.models.error_attempt import ErrorAttempt
 from app.models.llm_interaction import LLMInteraction
+from app.models.decision import Decision
+from app.models.technology_decision import TechnologyDecision

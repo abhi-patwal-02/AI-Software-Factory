@@ -5,6 +5,10 @@ from app.graph.state import FactoryState
 from app.services.project_brain import build_project_brain
 from app.services.llm_master_agent import decide_with_llm
 from app.services.master_decision import validate_master_decision
+from app.services.decision_executor import execute_decision
+from app.models.agent import Agent
+from app.models.task import Task
+from app.services.agent_execution import execute_agent_task
 
 
 def build_brain_node(
@@ -55,6 +59,67 @@ def validate_decision_node(
         "error": None
     }
 
+def execute_decision_node(
+    state: FactoryState,
+    db: Session
+) -> dict:
+
+    decision = state["decision"]
+
+    execute_decision(
+        decision,
+        db
+    )
+
+    return {
+        "error": None
+    }
+    
+def execute_agent_node(
+    state: FactoryState,
+    db: Session
+) -> dict:
+
+    decision = state["decision"]
+
+    if decision.action != "assign_task":
+        return {
+            "error": None
+        }
+
+    task = db.get(
+        Task,
+        decision.task_id
+    )
+
+    agent = db.get(
+        Agent,
+        decision.agent_id
+    )
+
+    if not task:
+        raise ValueError(
+            "Task not found during agent execution"
+        )
+
+    if not agent:
+        raise ValueError(
+            "Agent not found during agent execution"
+        )
+
+    result = execute_agent_task(
+        task,
+        agent,
+        db
+    )
+
+    print("\n===== AGENT RESULT =====")
+    print(result)
+
+    return {
+        "error": None
+    }
+
 
 def build_factory_graph(
     db: Session
@@ -85,6 +150,22 @@ def build_factory_graph(
             db
         )
     )
+    
+    graph.add_node(
+        "execute_decision",
+        lambda state: execute_decision_node(
+            state,
+            db
+        )
+    )
+    
+    graph.add_node(
+    "execute_agent",
+    lambda state: execute_agent_node(
+        state,
+        db
+    )
+)
 
     graph.add_edge(
         START,
@@ -103,6 +184,16 @@ def build_factory_graph(
 
     graph.add_edge(
         "validate_decision",
+        "execute_decision"
+    )
+
+    graph.add_edge(
+        "execute_decision",
+        "execute_agent"
+    )
+
+    graph.add_edge(
+        "execute_agent",
         END
     )
 

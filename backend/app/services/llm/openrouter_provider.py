@@ -80,6 +80,10 @@ class OpenRouterProvider(LLMProvider):
 
         # Validate JSON when a response model is expected.
         if response_model is not None:
+            
+            print("\n===== RAW LLM RESPONSE =====")
+            print(repr(clean_response))
+            print("============================")
 
             try:
                 json.loads(clean_response)
